@@ -24,8 +24,8 @@ namespace FractalTrees
 	/// </summary>
 	public partial class MainWindow : Window
 	{
-		private SKSurface surf;
-		private SKCanvas canvas;
+		private SKBitmap bitmap;
+		private SKPMColor[] colors;
 		private float branchAngle = (float)Math.PI / 8f;
 		private float branchDecay = 0.8f;
 		private int width = 1920, height = 1080;
@@ -39,10 +39,11 @@ namespace FractalTrees
 		public MainWindow()
 		{
 			InitializeComponent();
-			height *= 16;
-			width *= 16;
-			surf = SKSurface.Create(width, height, SKImageInfo.PlatformColorType, SKAlphaType.Opaque);
-			canvas = surf.Canvas;
+			var multi = 1;
+			height *= multi;
+			width *= multi;
+			bitmap = new SKBitmap(width, height);
+			colors = bitmap.ColorTable.Colors;
 			Thread t = new Thread(Start);
 			t.Start();
 		}
@@ -50,10 +51,9 @@ namespace FractalTrees
 		public void Start()
 		{
 			Mandlebrot();
-			canvas.Flush();
 			UpdateImage();
 			var f = new FileStream("mandlebrot.png", FileMode.Create);
-			surf.Snapshot().Encode(SKEncodedImageFormat.Png, 100).SaveTo(f);
+			SKImage.FromBitmap(bitmap).Encode(SKEncodedImageFormat.Png, 100).SaveTo(f);
 			f.Flush();
 		}
 
@@ -92,8 +92,8 @@ namespace FractalTrees
 					bright = Math.Sqrt(bright);
 					if (iterations == n)
 						bright = 0;
-
-					canvas.DrawPoint(new SKPoint(x, y), new SKColor((byte)(255 * bright), 0, (byte)(100 * bright)));
+					var col = new SKColor((byte)(255 * bright), 0, (byte)(100 * bright));
+					colors[x + y * width] = (SKPMColor)col;
 				}
 			};
 		}
@@ -106,7 +106,7 @@ namespace FractalTrees
 		{
 			paint.Color = new SKColor((byte)length, (byte)(255-length), (byte)angle);
 			var p2 = new SKPoint(-length * (float)Math.Sin(angle), -length * (float)Math.Cos(angle)) + p1;
-			canvas.DrawLine(p1, p2, paint);
+			//canvas.DrawLine(p1, p2, paint);
 			if (length > 10)
 			{
 				Branch(length * branchDecay, p2, angle + branchAngle);
@@ -116,12 +116,13 @@ namespace FractalTrees
 
 		void UpdateImage()
 		{
-			canvas.Flush();
+			bitmap.SetColorTable(new SKColorTable(colors));
+
 			Canvas.Dispatcher.Invoke(() =>
 			{
 				var src = new BitmapImage();
 				src.BeginInit();
-				src.StreamSource = surf.Snapshot().Encode(SKEncodedImageFormat.Png, 100).AsStream();
+				src.StreamSource = SKImage.FromBitmap(bitmap).Encode(SKEncodedImageFormat.Png, 100).AsStream();
 				src.CacheOption = BitmapCacheOption.None;
 				src.EndInit();
 				Canvas.Source = src;
