@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -25,36 +25,43 @@ namespace FractalTrees
 	public partial class MainWindow : Window
 	{
 		private SKBitmap bitmap;
-		private SKPMColor[] colors;
 		private float branchAngle = (float)Math.PI / 8f;
 		private float branchDecay = 0.8f;
 		private int width = 1920, height = 1080;
+		private SKCanvas canvas;
+		private bool useValue = true;
+		private double _ca, _cb;
 		private SKPaint paint = new SKPaint
 		{
 			Color = new SKColor(255, 0, 100),
-			StrokeWidth = 1,
+			StrokeWidth = 4,
 			IsAntialias = true
 		};
 
 		public MainWindow()
 		{
 			InitializeComponent();
-			var multi = 1;
-			height *= multi;
-			width *= multi;
-			bitmap = new SKBitmap(width, height);
-			colors = bitmap.ColorTable.Colors;
+			var multi = 0.5f;
+			height = (int)Math.Floor(multi * height);
+			width = (int)Math.Floor(multi * width);
+			bitmap = new SKBitmap(width, height, SKImageInfo.PlatformColorType, SKAlphaType.Opaque);
+			canvas = new SKCanvas(bitmap);
+			canvas.Clear(new SKColor(255 / 10, 0, 10));
+			canvas.Flush();
 			Thread t = new Thread(Start);
 			t.Start();
 		}
 
 		public void Start()
 		{
-			Mandlebrot();
-			UpdateImage();
-			var f = new FileStream("mandlebrot.png", FileMode.Create);
+			while(true)
+			{
+				Mandlebrot();
+				UpdateImage();
+			}
+			/*var f = new FileStream("mandlebrot.png", FileMode.Create);
 			SKImage.FromBitmap(bitmap).Encode(SKEncodedImageFormat.Png, 100).SaveTo(f);
-			f.Flush();
+			f.Flush();*/
 		}
 
 		void Mandlebrot(float scale = 2.5f, SKPoint pos = default)
@@ -74,6 +81,11 @@ namespace FractalTrees
 					var n = 0;
 					var ca = a;
 					var cb = b;
+					if (useValue)
+					{
+						ca = 0;// System.Windows.Forms.Control.MousePosition.X;
+						cb = .8f;//System.Windows.Forms.Control.MousePosition.Y;
+					}
 					for (n = 0; n < iterations; n++)
 					{
 						var aa = a * a - b * b;
@@ -92,8 +104,7 @@ namespace FractalTrees
 					bright = Math.Sqrt(bright);
 					if (iterations == n)
 						bright = 0;
-					var col = new SKColor((byte)(255 * bright), 0, (byte)(100 * bright));
-					colors[x + y * width] = (SKPMColor)col;
+					bitmap.SetPixel(x, y, new SKColor((byte)(255 * bright), 0, (byte)(100 * bright)));
 				}
 			};
 		}
@@ -116,8 +127,6 @@ namespace FractalTrees
 
 		void UpdateImage()
 		{
-			bitmap.SetColorTable(new SKColorTable(colors));
-
 			Canvas.Dispatcher.Invoke(() =>
 			{
 				var src = new BitmapImage();
