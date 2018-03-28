@@ -4,9 +4,13 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:FractalTrees"
-        mc:Ignorable="d"
+		xmlns:WPF="clr-namespace:SharpGL.WPF;assembly=SharpGL.WPF"
+		mc:Ignorable="d"
         Title="MainWindow" Height="750" Width="1280" Background="#FF19000A">
 	<Grid>
-		<Image x:Name="Canvas" Grid.ColumnSpan="2"/>
+		<WPF:OpenGLControl x:Name="glControl" 			   
+			OpenGLInitialized="GlInit"  
+			Resized="GlResize" 
+			OpenGLDraw="GlDraw" />
 	</Grid>
 </Window>
