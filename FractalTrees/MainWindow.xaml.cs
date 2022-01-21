@@ -48,8 +48,6 @@ namespace FractalTrees
 			canvas = new SKCanvas(bitmap);
 			canvas.Clear(new SKColor(255 / 10, 0, 10));
 			canvas.Flush();
-			thread = new Thread(Start);
-			thread.Start();
 		}
 
 		protected override void OnClosing(CancelEventArgs e)
@@ -74,17 +72,12 @@ namespace FractalTrees
 		private void GlInit(object sender, SharpGL.SceneGraph.OpenGLEventArgs args)
 		{
 			var gl = glControl.OpenGL;
-			gl.ClearColor(.1f, 0, .01f, 1f);
+			gl.ClearColor((255/10)/255f, 0, (10/255f), 1f);
 		}
 
 		private void GlResize(object sender, SharpGL.SceneGraph.OpenGLEventArgs args)
 		{
-			OpenGL gl = glControl.OpenGL;
-			gl.MatrixMode(OpenGL.GL_PROJECTION);
-			gl.LoadIdentity();
-			gl.Ortho(-1, 1, -1, 1, -1, 1);
-			gl.MatrixMode(OpenGL.GL_MODELVIEW);
-			gl.Disable(OpenGL.GL_DEPTH_TEST);
+
 		}
 
 		private void GlDraw(object sender, SharpGL.SceneGraph.OpenGLEventArgs args)
@@ -92,6 +85,15 @@ namespace FractalTrees
 			var gl = glControl.OpenGL;
 			gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
 			gl.LoadIdentity();
+
+			gl.Begin(OpenGL.GL_QUADS);
+			gl.Color((byte)255, (byte)255, (byte)255);
+			gl.Vertex(-0.5, -0.5);
+			gl.Vertex( 0.5, -0.5);
+			gl.Vertex( 0.5,  0.5);
+			gl.Vertex(-0.5,  0.5);
+			gl.End();
+
 			gl.Flush();
 		}
 	}
