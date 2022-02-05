@@ -69,9 +69,21 @@ public class CultureSorter
 		return this;
 	}
 
+	public CultureSorter ResetLikedTags()
+	{
+		_likedTags.Clear();
+		return this;
+	}
+
 	public CultureSorter WithDislikedTags(params string[] tags)
 	{
 		_dislikedTags.AddRange(tags);
+		return this;
+	}
+
+	public CultureSorter ResetDislikedTags()
+	{
+		_dislikedTags.Clear();
 		return this;
 	}
 
@@ -156,25 +168,58 @@ public class CultureSorter
 		var files = Directory.GetFiles(Path.Combine(_baseDir, folder));
 		foreach (var filePath in files)
 		{
-			var file = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite);
-
-			using var zip = new ZipArchive(file, ZipArchiveMode.Read, false);
-
+			using var file = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite);
 			var filename = Path.GetFileName(filePath);
+			var cleanName = Path.GetFileNameWithoutExtension(filename);
+
+
+			var outFolder = Path.Combine(_outDir, cleanName);
+			Directory.CreateDirectory(outFolder);
+			var outFile = Path.Combine(outFolder, "Chapter1.cbz");
+
+			using var outFileStream = new FileStream(outFile, FileMode.Create);
+
+
+			file.CopyTo(outFileStream);
+			outFileStream.Position = 0;
+			file.Dispose();
+
+			using var zip = new ZipArchive(outFileStream, ZipArchiveMode.Update, true);
+
 
 
 			var infoEntry = zip.GetEntry("info.json");
 			using var infoStream = infoEntry.Open();
 			using var reader = new StreamReader(infoStream);
 			var infoJson = reader.ReadToEnd();
+			infoStream.Dispose();
 
 			var info = JsonConvert.DeserializeObject<Info>(infoJson);
 			var details = new Details(info);
 
+			infoEntry.Delete();
+
+
+			var coverEntry = zip.Entries.OrderBy(e => e.Name).First();
+
+
+
+			using var coverStream = coverEntry.Open();
+			var coverFile = Path.Combine(outFolder, "cover.png");
+			using var coverFileStream = new FileStream(coverFile, FileMode.Create);
+			coverFileStream.Position = 0;
+			coverStream.CopyTo(coverFileStream);
+			coverFileStream.Flush();
+			coverStream.Dispose();
+
+			
+			zip.Dispose();
+
+			var detailsFile = Path.Combine(outFolder, "details.json");
+			
+			File.WriteAllText(detailsFile, JsonConvert.SerializeObject(details, Formatting.Indented));
 		}
-
-
-		throw new  NotImplementedException();
+		return this;
 	}
 
 	private class Info
@@ -232,18 +277,15 @@ public class CultureSorter
 			Artist = Author = string.Join(", ", info.Artist);
 			Description = info.Description;
 			Status = "0";
-			Genre = info.Tags;
+			Genre = info.Tags.Clone() as string[];
 		}
 	}
 
 	class ArtistConverter : JsonConverter
 	{
-		public override bool CanWrite { get { return false; } }
+		public override bool CanWrite => false;
 
-		public override bool CanConvert(Type objectType)
-		{
-			return objectType == typeof(string[]);
-		}
+		public override bool CanConvert(Type objectType) => objectType == typeof(string[]);
 
 		public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
 		{
@@ -265,9 +307,6 @@ public class CultureSorter
 
 		}
 
-		public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-		{
-			throw new NotImplementedException();
-		}
+		public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) => throw new NotImplementedException();
 	}
 }

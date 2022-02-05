@@ -33,9 +33,7 @@ namespace Sandbox
             };
 
             var sorter = new CultureSorter(@"D:\DL_Zone\Fakku Data")
-                .WithLikedTags(likedTags)
-                .WithDislikedTags(dislikedTags)
-                .SortFiles();
+                .ConvertForTachi("accept Final");
 
 
             /*foreach (var folder in folders)
