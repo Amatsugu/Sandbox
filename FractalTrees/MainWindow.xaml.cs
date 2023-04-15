@@ -16,6 +16,9 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+
+using FractalTrees.Fractal;
+
 using SharpGL;
 using SkiaSharp;
 
@@ -27,10 +30,12 @@ namespace FractalTrees
 	public partial class MainWindow : Window
 	{
 		private SKBitmap bitmap;
+		private Timer timer;
 		private int width = 1920, height = 1080;
 		private SKCanvas canvas;
 		private Thread thread;
 		private bool running = true;
+		private Stopwatch time = new Stopwatch();
 		private SKPaint paint = new SKPaint
 		{
 			Color = new SKColor(255, 0, 100),
@@ -41,60 +46,65 @@ namespace FractalTrees
 		public MainWindow()
 		{
 			InitializeComponent();
-			var multi = 1f;
-			height = (int)Math.Floor(multi * height);
-			width = (int)Math.Floor(multi * width);
+			height = (int)Math.Floor(Height);
+			width = (int)Math.Floor(Width);
 			bitmap = new SKBitmap(width, height, SKImageInfo.PlatformColorType, SKAlphaType.Opaque);
-			canvas = new SKCanvas(bitmap);
-			canvas.Clear(new SKColor(255 / 10, 0, 10));
-			canvas.Flush();
+
+			//timer = new Timer((_) => Render(), null, TimeSpan.Zero, TimeSpan.FromSeconds(1 / 10f));
 		}
 
 		protected override void OnClosing(CancelEventArgs e)
 		{
 			running = false;
-			thread.Join();
+			thread?.Join();
 			base.OnClosing(e);
 		}
 
-		public void Start()
+		public void Render()
 		{
-			var mb = new Metaballs(bitmap, 1);
-			while (running)
-			{
-				mb.Render();
-			}
-			//var f = new FileStream("day of black sun.png", FileMode.Create);
-			//SKImage.FromBitmap(bitmap).Encode(SKEncodedImageFormat.Png, 100).SaveTo(f);
-			//f.Flush();
+			time.Stop();
+			var delta = time.Elapsed;
+			time.Start();
+			var mb = new Metaballs(bitmap, 10);
+			Mandlebrot.Render(bitmap);
+			//mb.Render(delta.TotalSeconds);
 		}
 
-		private void GlInit(object sender, SharpGL.SceneGraph.OpenGLEventArgs args)
-		{
-			var gl = glControl.OpenGL;
-			gl.ClearColor((255/10)/255f, 0, (10/255f), 1f);
-		}
-
-		private void GlResize(object sender, SharpGL.SceneGraph.OpenGLEventArgs args)
+		private void GLRender()
 		{
 
-		}
-
-		private void GlDraw(object sender, SharpGL.SceneGraph.OpenGLEventArgs args)
-		{
 			var gl = glControl.OpenGL;
 			gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);
 			gl.LoadIdentity();
-
-			gl.Begin(OpenGL.GL_QUADS);
-			gl.Color((byte)255, (byte)255, (byte)255);
-			gl.Vertex(-0.5, -0.5);
-			gl.Vertex( 0.5, -0.5);
-			gl.Vertex( 0.5,  0.5);
-			gl.Vertex(-0.5,  0.5);
-			gl.End();
+			//gl.Begin(OpenGL.GL_QUADS);
+			////gl.Color((byte)255, (byte)255, (byte)255);
+			////gl.Vertex(-0.5, -0.5);
+			////gl.Vertex(0.5, -0.5);
+			////gl.Vertex(0.5, 0.5);
+			////gl.Vertex(-0.5, 0.5);
+			//gl.End();
+			Render();
+			gl.DrawPixels(width, height, OpenGL.GL_BGRA, OpenGL.GL_UNSIGNED_BYTE, bitmap.GetPixels());
 
 			gl.Flush();
+		}
+
+		private void glControl_OpenGLDraw(object sender, SharpGL.WPF.OpenGLRoutedEventArgs args)
+		{
+			GLRender();
+		}
+
+		private void glControl_Resized(object sender, SharpGL.WPF.OpenGLRoutedEventArgs args)
+		{
+			height = (int)Math.Floor(Height);
+			width = (int)Math.Floor(Width);
+			bitmap = new SKBitmap(width, height, SKImageInfo.PlatformColorType, SKAlphaType.Opaque);
+		}
+
+		private void glControl_OpenGLInitialized(object sender, SharpGL.WPF.OpenGLRoutedEventArgs args)
+		{
+			var gl = glControl.OpenGL;
+			gl.ClearColor((255 / 10) / 255f, 0, (10 / 255f), 1f);
 		}
 	}
 }

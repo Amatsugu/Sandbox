@@ -9,8 +9,8 @@
         Title="MainWindow" Height="750" Width="1280" Background="#FF19000A">
 	<Grid>
 		<WPF:OpenGLControl x:Name="glControl" 			   
-			OpenGLInitialized="GlInit"  
-			Resized="GlResize" 
-			OpenGLDraw="GlDraw" />
+			OpenGLInitialized="glControl_OpenGLInitialized"  
+			Resized="glControl_Resized" 
+			OpenGLDraw="glControl_OpenGLDraw" DrawFPS="True" />
 	</Grid>
 </Window>

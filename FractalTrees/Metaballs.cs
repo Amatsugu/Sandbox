@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,15 +17,17 @@ namespace FractalTrees
 
 		public Metaballs(SKBitmap bitmap, int balls)
 		{
-			//blobs = new Blob[balls];
+			blobs = new Blob[balls];
 			this.bitmap = bitmap;
 			height = bitmap.Height;
 			width = bitmap.Width;
+			var rng = new Random();
+			for (int i = 0; i < balls; i++)
+				blobs[i] = new Blob(rng.NextDouble() * width, rng.NextDouble() * height, rng.NextDouble() * 50);
 			diag = Math.Sqrt(Math.Pow(width, 2) + Math.Pow(height, 2));
-			blobs = new Blob[] { new Blob(100, 100) };
 		}
 
-		public void Render()
+		public void Render(double delta)
 		{
 			var b = blobs.First();
 			for (int x = 0; x < width; x++)
@@ -37,7 +40,7 @@ namespace FractalTrees
 					bitmap.SetPixel(x, y, col);
 				}
 			}
-			b.Update();
+			b.Update(delta);
 		}
 	}
 
@@ -51,12 +54,12 @@ namespace FractalTrees
 		{
 			Position = position;
 			Radius = radius;
-			Velocity = Vector.Random2D() * 20;
+			Velocity = Vector.Random2D() * .01;
 		}
 
-		public void Update()
+		public void Update(double delta)
 		{
-			Position = Position + Velocity;
+			Position += Velocity * delta;
 		}
 
 		public Blob(double x, double y, double radius = 40) :this(new Vector(x,y), radius)

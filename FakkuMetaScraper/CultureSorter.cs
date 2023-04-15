@@ -1,16 +1,17 @@
 ﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.IO.Compression;
-using System.Linq;
 
 namespace Sandbox;
 
 public class CultureSorter
 {
+	public string RejectPath => _rejectDir;
+	public string AcceptPath => _acceptDir;
+	public string MaybeDir => _maybeDir;
+	public string SrcDir => _srcDir;
+	public string OutDir => _outDir;
+
 	private readonly string _baseDir;
 	private string _rejectDir;
 	private string _acceptDir;
@@ -30,7 +31,22 @@ public class CultureSorter
 		_srcDir = Path.Combine(baseDir, "src");
 		_outDir = Path.Combine(baseDir, "out");
 		_likedTags = new List<string>();
-		_dislikedTags = new List<string>();	
+		_dislikedTags = new List<string>();
+	}
+
+	public CultureSorter EnsureFolders()
+	{
+		if (!Directory.Exists(_rejectDir))
+			Directory.CreateDirectory(_rejectDir);
+		if (!Directory.Exists(_acceptDir))
+			Directory.CreateDirectory(_acceptDir);
+		if (!Directory.Exists(_maybeDir))
+			Directory.CreateDirectory(_maybeDir);
+		if (!Directory.Exists(_srcDir))
+			Directory.CreateDirectory(_srcDir);
+		if (!Directory.Exists(_outDir))
+			Directory.CreateDirectory(_outDir);
+		return this;
 	}
 
 	public CultureSorter WithRejectFolder(string foldername)
@@ -102,13 +118,13 @@ public class CultureSorter
 			Console.Clear();
 			Console.ForegroundColor = ConsoleColor.White;
 			Console.SetCursorPosition(0, 0);
-			
+
 			Console.ResetColor();
 			Console.ForegroundColor = ConsoleColor.Cyan;
 			Console.Write("Current File: ");
 			Console.ResetColor();
 			Console.WriteLine(filename);
-			
+
 			Console.ResetColor();
 			Console.ForegroundColor = ConsoleColor.Cyan;
 			Console.Write("Progress: ");
@@ -119,11 +135,13 @@ public class CultureSorter
 			Console.Write("Reading File...");
 
 			var infoEntry = zip.GetEntry("info.json");
+			if (infoEntry == null)
+				continue;
 			using var infoStream = infoEntry.Open();
 			using var reader = new StreamReader(infoStream);
 			var infoJson = reader.ReadToEnd();
 
-			var info = JsonConvert.DeserializeObject<Info>(infoJson);
+			var info = JsonConvert.DeserializeObject<DoujinInfo>(infoJson);
 			Console.ForegroundColor = ConsoleColor.Green;
 			Console.WriteLine("Done!");
 			var like = 0;
@@ -163,6 +181,36 @@ public class CultureSorter
 		return this;
 	}
 
+	public void SortItem(string file, Func<string, DoujinInfo> getInfo, Action<string, DoujinInfo> accept, Action<string, DoujinInfo> reject, Action<string, DoujinInfo> maybe)
+	{
+		var like = 0;
+		var dislike = 0;
+
+		var info = getInfo(file);
+
+		foreach (var tag in info.Tags)
+		{
+			if (_likedTags.Any(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase)))
+				like++;
+			if (_dislikedTags.Any(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase)))
+				dislike++;
+		}
+
+		if (dislike == 0 && like > 0)
+		{
+			accept(file, info);
+			return;
+		}
+
+		if (like == 0 && dislike > 0)
+		{
+			reject(file, info);
+			return;
+		}
+
+		maybe(file, info);
+	}
+
 	public CultureSorter ConvertForTachi(string folder = "accept")
 	{
 		var files = Directory.GetFiles(Path.Combine(_baseDir, folder));
@@ -172,13 +220,11 @@ public class CultureSorter
 			var filename = Path.GetFileName(filePath);
 			var cleanName = Path.GetFileNameWithoutExtension(filename);
 
-
 			var outFolder = Path.Combine(_outDir, cleanName);
 			Directory.CreateDirectory(outFolder);
 			var outFile = Path.Combine(outFolder, "Chapter1.cbz");
 
 			using var outFileStream = new FileStream(outFile, FileMode.Create);
-
 
 			file.CopyTo(outFileStream);
 			outFileStream.Position = 0;
@@ -186,23 +232,20 @@ public class CultureSorter
 
 			using var zip = new ZipArchive(outFileStream, ZipArchiveMode.Update, true);
 
-
-
 			var infoEntry = zip.GetEntry("info.json");
+			if (infoEntry == null)
+				continue;
 			using var infoStream = infoEntry.Open();
 			using var reader = new StreamReader(infoStream);
 			var infoJson = reader.ReadToEnd();
 			infoStream.Dispose();
 
-			var info = JsonConvert.DeserializeObject<Info>(infoJson);
-			var details = new Details(info);
+			var info = JsonConvert.DeserializeObject<DoujinInfo>(infoJson);
+			var details = new TachiDetails(info);
 
 			infoEntry.Delete();
 
-
 			var coverEntry = zip.Entries.OrderBy(e => e.Name).First();
-
-
 
 			using var coverStream = coverEntry.Open();
 			var coverFile = Path.Combine(outFolder, "cover.png");
@@ -212,101 +255,12 @@ public class CultureSorter
 			coverFileStream.Flush();
 			coverStream.Dispose();
 
-			
 			zip.Dispose();
 
 			var detailsFile = Path.Combine(outFolder, "details.json");
-			
+
 			File.WriteAllText(detailsFile, JsonConvert.SerializeObject(details, Formatting.Indented));
 		}
 		return this;
-	}
-
-	private class Info
-	{
-		[JsonConverter(typeof(ArtistConverter))]
-		[JsonProperty("Artist")]
-		public string[] Artist { get; set; }
-
-		[JsonProperty("Description")]
-		public string Description { get; set; }
-
-		[JsonProperty("Pages")]
-		public int Pages { get; set; }
-
-
-		[JsonProperty("Tags")]
-		public string[] Tags { get; set; }
-
-
-		[JsonProperty("Title")]
-		public string Title { get; set; }
-
-		
-
-		/*[JsonProperty("Released")]
-		public DateTime Released { get; set; }*/
-	}
-
-	private class Details
-	{
-		[JsonProperty("title")]
-		public string Title { get; set; }
-
-		[JsonProperty("author")]
-		public string Author { get; set; }
-
-		[JsonProperty("artist")]
-		public string Artist { get; set; }
-
-		[JsonProperty("description")]
-		public string Description { get; set; }
-
-		[JsonProperty("genre")]
-		public string[] Genre { get; set; }
-
-		[JsonProperty("status")]
-		public string Status { get; set; }
-
-		[JsonProperty("_status values")]
-		public string[] StatusValues { get; set; } = new[] { "0 = Unknown", "1 = Ongoing", "2 = Completed", "3 = Licensed" };
-
-		public Details(Info info)
-		{
-			Title = info.Title;
-			Artist = Author = string.Join(", ", info.Artist);
-			Description = info.Description;
-			Status = "0";
-			Genre = info.Tags.Clone() as string[];
-		}
-	}
-
-	class ArtistConverter : JsonConverter
-	{
-		public override bool CanWrite => false;
-
-		public override bool CanConvert(Type objectType) => objectType == typeof(string[]);
-
-		public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
-		{
-			var token = JToken.ReadFrom(reader);
-
-			switch(token)
-			{
-				case JValue v:
-					var val = v.ToObject<string>();
-					if(val == null)
-						return Array.Empty<string>();
-					return new string[] { val };
-				case JArray arr:
-					return arr.ToObject<string[]>();
-				default:
-					throw new NotSupportedException();
-			}
-
-
-		}
-
-		public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) => throw new NotImplementedException();
 	}
 }
