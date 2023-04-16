@@ -69,16 +69,27 @@ public class FakkuMeta
 
 	public async Task LoadTagsAsync(float delaySeconds = 5)
 	{
+		var i = 0;
 		foreach (var entry in _entries)
 		{
-			Console.Write($"Loading data for {entry.Name}... ");
+			i++;
+			Console.ForegroundColor = ConsoleColor.DarkGray;
+			Console.Write($"[{i} of {_entries.Count} ({((float)i / _entries.Count) * 100:00}%)] ");
+			Console.ForegroundColor = ConsoleColor.Gray;
+			Console.Write($"Loading data for ");
+			Console.ForegroundColor = ConsoleColor.Cyan;
+			Console.Write(entry.Name);
+			Console.ForegroundColor = ConsoleColor.Gray;
+			Console.Write("... ");
 			try
 			{
 				await LoadEntryTagsAsync(entry);
+				Console.ForegroundColor = ConsoleColor.Green;
 				Console.WriteLine("Done!");
 			}catch(FlurlHttpException ex)
 			{
 				_errors.Add(new(entry.Filepath, ex.StatusCode?.ToString() ?? ""));
+				Console.ForegroundColor = ConsoleColor.Red;
 				Console.WriteLine("Failed!");
 			}
 			await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
@@ -129,20 +140,24 @@ public class FakkuMeta
 		if (string.IsNullOrWhiteSpace(html))
 			return;
 
-		var tags= ParseTags(html);
+		var (tags, desc)= ParseTags(html);
 		entry.Tags = tags;
+		entry.Description = desc;
 	}
 
-	public static List<string> ParseTags(string html)
+	public static (List<string> tags, string desc) ParseTags(string html)
 	{
 		var doc = new HtmlDocument();
 		doc.LoadHtml(html);
 
 		var tagElems = doc.QuerySelectorAll(".inline-block.bg-gray-100[href]");
 
+
+		var desc = doc.QuerySelector(".table-cell.leading-relaxed");
+
 		var tags = tagElems.Select(t => t.InnerText.Trim()).ToList();
 
-		return tags;
+		return (tags, desc?.InnerText.Trim() ?? string.Empty);
 
 	}
 
@@ -152,7 +167,7 @@ public class FakkuMeta
 		var info = new DoujinInfo()
 		{
 			Artist = new[] { entry.Artist },
-			Description = entry.Collection,
+			Description = $"{entry.Collection}\n{entry.Description}",
 			Title = entry.Name,
 			Tags = entry.Tags.ToArray()
 		};

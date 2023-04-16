@@ -16,6 +16,7 @@ public class EntryInfo
 	public string Name { get; }
 	public string Artist { get; }
 	public string Collection { get; }
+	public string Description { get; set; }
 
 	private static readonly TextParser<string> _artistParser = from open in Character.EqualTo('[')
 																				 from artist in Character.Except(']').Many()
@@ -50,6 +51,7 @@ public class EntryInfo
 		Filepath = filepath;
 		var filename = Path.GetFileName(filepath);
 		(Name, Artist, Collection) = ParseFilename(filename);
+		Description = string.Empty;
 	}
 
 	public static (string name, string artist, string collection) ParseFilename(string filename)

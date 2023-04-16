@@ -188,6 +188,12 @@ public class CultureSorter
 
 		var info = getInfo(file);
 
+		if(info.Tags.Length == 0)
+		{
+			maybe(file, info);
+			return;
+		}
+
 		foreach (var tag in info.Tags)
 		{
 			if (_likedTags.Any(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase)))

@@ -56,7 +56,7 @@ namespace Sandbox
 				.AddSorter(sorter);
 
 
-			await fakku.LoadTagsAsync();
+			await fakku.LoadTagsAsync(4);
 
 			fakku.Sort().WriteLogs("errors.json");
 
